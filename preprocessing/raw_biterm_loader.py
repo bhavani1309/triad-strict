@@ -64,6 +64,12 @@ def load_code_biterm(base_path):
 
         biterms = generate_biterms(tokens)
 
-        artifacts[artifact_id] = biterms
+        # identifier-aware weighting
+        combined = tokens + biterms
+
+        # give extra weight to identifiers
+        weighted = combined * 2
+
+        artifacts[artifact_id] = weighted
 
     return artifacts
