@@ -1,7 +1,7 @@
 import os
 import numpy as np # type: ignore
 
-from ir_models.vsm import VSMModel
+from ir_models.bm25 import BM25Model
 from evaluation.metrics import mean_average_precision
 from triad_core.transitive_links import TransitiveEngine
 from triad_core.raw_enrichment import RawEnrichmentEngine
@@ -39,7 +39,7 @@ def run_strict_biterm_triad_vsm():
 
     # Req–DD
     print("\nBuilding Req–DD similarity...")
-    vsm_si = VSMModel()
+    vsm_si = BM25Model()
     vsm_si.build_dual_corpus(req, dd)
     sim_si = vsm_si.similarity_dual()
 
@@ -50,25 +50,25 @@ def run_strict_biterm_triad_vsm():
 
     # Req–Code
     print("Building enriched Req–Code similarity...")
-    vsm_st = VSMModel()
+    vsm_st = BM25Model()
     vsm_st.build_dual_corpus(req_enriched, code)
     sim_st = vsm_st.similarity_dual()
 
     # DD–Code
     print("Building DD–Code similarity...")
-    vsm_it = VSMModel()
+    vsm_it = BM25Model()
     vsm_it.build_dual_corpus(dd, code)
     sim_it = vsm_it.similarity_dual()
 
     # Req–Req
     print("Building Req–Req similarity...")
-    vsm_ss = VSMModel()
+    vsm_ss = BM25Model()
     vsm_ss.build_single_corpus(req_enriched)
     sim_ss = vsm_ss.similarity_single()
 
     # DD–DD
     print("Building DD–DD similarity...")
-    vsm_ii = VSMModel()
+    vsm_ii = BM25Model()
     vsm_ii.build_single_corpus(dd)
     sim_ii = vsm_ii.similarity_single()
 
