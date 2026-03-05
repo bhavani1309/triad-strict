@@ -111,10 +111,18 @@ def run_strict_biterm_triad():
         i_t_matrix=sim_it
     )
 
+    # normalize propagation scores
     bonus_matrix = outer_bonus + inner_bonus
 
+    max_bonus = np.max(bonus_matrix)
+
+    if max_bonus > 0:
+        bonus_matrix = bonus_matrix / max_bonus
+
     # Paper-style multiplicative score adjustment
-    adjusted_sim = sim_st * (1 + bonus_matrix)
+    propagation_weight = 0.6
+
+    adjusted_sim = sim_st * (1 + propagation_weight * bonus_matrix)
 
     # -----------------------------
     # Evaluation
