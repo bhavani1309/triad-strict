@@ -1,5 +1,5 @@
 import os
-import numpy as np # type: ignore
+import numpy as np  # type: ignore
 
 from ir_models.bm25 import BM25Model
 from evaluation.metrics import mean_average_precision
@@ -10,7 +10,6 @@ from preprocessing.raw_biterm_loader import (
     load_code_biterm
 )
 
-
 REQ_PATH = "dataset/dronology/processed/req"
 DD_PATH = "dataset/dronology/processed/design_definition"
 CODE_PATH = "dataset/dronology/processed/code"
@@ -19,15 +18,18 @@ GROUND_TRUTH_PATH = "dataset/dronology/trace_matrices/req-code.txt"
 
 def load_ground_truth(path):
     gt = set()
+
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             parts = line.strip().split()
+
             if len(parts) >= 2:
                 gt.add((parts[0], parts[1]))
+
     return gt
 
 
-def run_strict_biterm_triad_vsm():
+def run_strict_biterm_triad():
 
     print("Loading biterm artifacts (generated from raw)...")
 
@@ -37,43 +39,64 @@ def run_strict_biterm_triad_vsm():
 
     print(f"Req: {len(req)}  DD: {len(dd)}  Code: {len(code)}")
 
-    # Req–DD
+    # -----------------------------
+    # Req–DD similarity
+    # -----------------------------
     print("\nBuilding Req–DD similarity...")
-    vsm_si = BM25Model()
-    vsm_si.build_dual_corpus(req, dd)
-    sim_si = vsm_si.similarity_dual()
 
-    # Enrichment
+    bm25_si = BM25Model()
+    bm25_si.build_dual_corpus(req, dd)
+    sim_si = bm25_si.similarity_dual()
+
+    # -----------------------------
+    # Requirement enrichment
+    # -----------------------------
     print("Enriching requirements...")
+
     enrich_engine = RawEnrichmentEngine(t=3)
     req_enriched = enrich_engine.enrich_requirements(req, dd, sim_si)
 
-    # Req–Code
+    # -----------------------------
+    # Req–Code similarity
+    # -----------------------------
     print("Building enriched Req–Code similarity...")
-    vsm_st = BM25Model()
-    vsm_st.build_dual_corpus(req_enriched, code)
-    sim_st = vsm_st.similarity_dual()
 
-    # DD–Code
+    bm25_st = BM25Model()
+    bm25_st.build_dual_corpus(req_enriched, code)
+    sim_st = bm25_st.similarity_dual()
+
+    # -----------------------------
+    # DD–Code similarity
+    # -----------------------------
     print("Building DD–Code similarity...")
-    vsm_it = BM25Model()
-    vsm_it.build_dual_corpus(dd, code)
-    sim_it = vsm_it.similarity_dual()
 
-    # Req–Req
+    bm25_it = BM25Model()
+    bm25_it.build_dual_corpus(dd, code)
+    sim_it = bm25_it.similarity_dual()
+
+    # -----------------------------
+    # Req–Req similarity
+    # -----------------------------
     print("Building Req–Req similarity...")
-    vsm_ss = BM25Model()
-    vsm_ss.build_single_corpus(req_enriched)
-    sim_ss = vsm_ss.similarity_single()
 
-    # DD–DD
+    bm25_ss = BM25Model()
+    bm25_ss.build_single_corpus(req_enriched)
+    sim_ss = bm25_ss.similarity_single()
+
+    # -----------------------------
+    # DD–DD similarity
+    # -----------------------------
     print("Building DD–DD similarity...")
-    vsm_ii = BM25Model()
-    vsm_ii.build_single_corpus(dd)
-    sim_ii = vsm_ii.similarity_single()
 
-    # Transitive propagation
+    bm25_ii = BM25Model()
+    bm25_ii.build_single_corpus(dd)
+    sim_ii = bm25_ii.similarity_single()
+
+    # -----------------------------
+    # TRIAD propagation
+    # -----------------------------
     print("Applying transitive propagation...")
+
     trans_engine = TransitiveEngine(base_t=3, base_m=0.5)
 
     outer_bonus = trans_engine.compute_outer_transitive_bonus(
@@ -93,7 +116,11 @@ def run_strict_biterm_triad_vsm():
     # Paper-style multiplicative score adjustment
     adjusted_sim = sim_st * (1 + bonus_matrix)
 
+    # -----------------------------
+    # Evaluation
+    # -----------------------------
     print("\nEvaluating MAP...")
+
     ground_truth = load_ground_truth(GROUND_TRUTH_PATH)
 
     source_ids = list(req.keys())
@@ -106,9 +133,9 @@ def run_strict_biterm_triad_vsm():
         ground_truth
     )
 
-    print("\n===== STRICT BITERM TRIAD (VSM) RESULT =====")
+    print("\n===== STRICT BITERM TRIAD (BM25) RESULT =====")
     print("MAP:", map_score)
 
 
 if __name__ == "__main__":
-    run_strict_biterm_triad_vsm()
+    run_strict_biterm_triad()
