@@ -22,11 +22,17 @@ def load_ground_truth(path):
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             parts = line.strip().split()
-
             if len(parts) >= 2:
                 gt.add((parts[0], parts[1]))
 
     return gt
+
+
+def normalize_matrix(matrix):
+    max_val = np.max(matrix)
+    if max_val > 0:
+        matrix = matrix / max_val
+    return matrix
 
 
 def run_strict_biterm_triad():
@@ -47,6 +53,7 @@ def run_strict_biterm_triad():
     bm25_si = BM25Model()
     bm25_si.build_dual_corpus(req, dd)
     sim_si = bm25_si.similarity_dual()
+    sim_si = normalize_matrix(sim_si)
 
     # -----------------------------
     # Requirement enrichment
@@ -64,6 +71,7 @@ def run_strict_biterm_triad():
     bm25_st = BM25Model()
     bm25_st.build_dual_corpus(req_enriched, code)
     sim_st = bm25_st.similarity_dual()
+    sim_st = normalize_matrix(sim_st)
 
     # -----------------------------
     # DD–Code similarity
@@ -73,6 +81,7 @@ def run_strict_biterm_triad():
     bm25_it = BM25Model()
     bm25_it.build_dual_corpus(dd, code)
     sim_it = bm25_it.similarity_dual()
+    sim_it = normalize_matrix(sim_it)
 
     # -----------------------------
     # Req–Req similarity
@@ -111,18 +120,36 @@ def run_strict_biterm_triad():
         i_t_matrix=sim_it
     )
 
-    # normalize propagation scores
-    bonus_matrix = outer_bonus + inner_bonus
+    # weighted propagation
+    bonus_matrix = 0.7 * outer_bonus + 0.3 * inner_bonus
 
     max_bonus = np.max(bonus_matrix)
-
     if max_bonus > 0:
         bonus_matrix = bonus_matrix / max_bonus
 
-    # Paper-style multiplicative score adjustment
+    # final TRIAD score adjustment
     propagation_weight = 0.6
 
-    adjusted_sim = sim_st * (1 + propagation_weight * bonus_matrix)
+    # lexical overlap boost
+    overlap_boost = np.zeros_like(sim_st)
+
+    for i, req_id in enumerate(req_enriched.keys()):
+        req_tokens = set(req_enriched[req_id])
+
+        for j, code_id in enumerate(code.keys()):
+            code_tokens = set(code[code_id])
+
+            overlap = len(req_tokens.intersection(code_tokens))
+
+            overlap_boost[i][j] = overlap
+
+    # normalize overlap
+    max_overlap = np.max(overlap_boost)
+    if max_overlap > 0:
+        overlap_boost = overlap_boost / max_overlap
+
+    # combine scores
+    adjusted_sim = sim_st * (1 + propagation_weight * bonus_matrix) + 0.1 * overlap_boost
 
     # -----------------------------
     # Evaluation
